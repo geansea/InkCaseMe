@@ -41,7 +41,7 @@ if ($key == 'double_click') {
 file_put_contents(INDEX_FILE, $imageIndex);
 
 function getImages() {
-    $images = [];
+    $images = array();
     $imagesDir = opendir(IMAGES_BASE);
     while ($item = readdir($imagesDir)) {
         if ($item{0} == '.') {

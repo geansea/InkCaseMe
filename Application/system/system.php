@@ -71,6 +71,69 @@ class System {
         imagedestroy($png);
     }
 
+    private static function createGrayscaleImage($width, $height) {
+        $im = imagecreate($width, $height);
+        for ($i = 0; i < 256; ++$i) {
+            imagecolorallocate($im, $i, $i, $i);
+        }
+        return $im;
+    }
+
+    private static function ditherGrayscaleImageOrderly($im) {
+        if (imageistruecolor($im)) {
+            return;
+        }
+        // 8 x 8 Bayer Matrix
+        $thresholdMap = array(
+            array(0x0, 0x8, 0x2, 0xA),
+            array(0xC, 0x4, 0xE, 0x6),
+            array(0x3, 0xB, 0x1, 0x9),
+            array(0xF, 0x7, 0xD, 0x5)
+        );
+        $w = imagesx($im);
+        $h = imagesy($im);
+        for ($y = 0; $y < $h; ++$y) {
+            for ($x = 0 ; $x < $w; ++$x) {
+                $gray8 = imagecolorat($im, $x, $y);
+                $gray4 = 0;
+                if ($gray8 < 8) {
+                    $gray4 = 0;
+                } else if ($gray8 >= 0xF8) {
+                    $gray4 = 0xF;
+                } else {
+                    $gray4 = ($gray8 - 8) >> 4; // 0x0 ~ 0xE
+                    $delta = $gray8 - 8 - $gray4 << 4; // 0x0 ~ 0xF
+                    if ($delta > $thresholdMap[$x][$y]) {
+                        ++$gray4;
+                    }
+                }
+                imagesetpixel($im, $x, $y, $gray4 * 0x11);
+            }
+        }
+    }
+
+    private static function ditherGrayscaleImageRandomly($im) {
+        if (imageistruecolor($im)) {
+            return;
+        }
+        $w = imagesx($im);
+        $h = imagesy($im);
+        for ($y = 0; $y < $h; ++$y) {
+            for ($x = 0 ; $x < $w; ++$x) {
+                $gray8 = imagecolorat($im, $x, $y);
+                $gray4 = 0;
+                if ($gray8 < 8) {
+                    $gray4 = 0;
+                } else if ($gray8 >= 0xF8) {
+                    $gray4 = 0xF;
+                } else {
+                    $gray4 = ($gray8 + mt_rand(-8, 7)) >> 4;
+                }
+                imagesetpixel($im, $x, $y, $gray4 * 0x11);
+            }
+        }
+    }
+
     private static function showImage($im) {
         $w = imagesx($im);
         $h = imagesy($im);
