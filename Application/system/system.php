@@ -24,12 +24,9 @@ class System {
         $im = imagecreatetruecolor(SCREEN_W, SCREEN_H);
         self::showScreen($im);
         // Show white
-        if (0) {
-            $white = imagecolorallocate($im, 0xFF, 0xFF, 0xFF);
-            imagefilledrectangle($im, 0, 0, SCREEN_W, SCREEN_H, $white);
-            imagecolordeallocate($im, $white);
-            self::showScreen($im);
-        }
+        $white = imagecolorallocate($im, 0xFF, 0xFF, 0xFF);
+        imagefilledrectangle($im, 0, 0, SCREEN_W, SCREEN_H, $white);
+        self::showScreen($im);
         imagedestroy($im);
     }
 
@@ -43,7 +40,7 @@ class System {
         imagefilledrectangle($im, 0, 0, SCREEN_W, SCREEN_H, $white);
         imagecolordeallocate($im, $white);
         // Text
-        $black = imagecolorallocate($im, 0xFF, 0xFF, 0xFF);
+        $black = imagecolorallocate($im, 0, 0, 0);
         imagettftext($im, 16, 0, 10, 20, $black, DEFAULT_FONT, $text);
         imagecolordeallocate($im, $black);
         // Show
@@ -51,39 +48,52 @@ class System {
         imagedestroy($im);
     }
 
-    public static function showJpg($file) {
+    public static function showJpg($file, $fast = true) {
         $jpg = imagecreatefromjpeg($file);
-        if ($jpg == false) {
+        if (!$jpg) {
             self::showText('Failed to open jpg');
             return;
         }
-        self::showImage($jpg);
+        self::showImage($jpg, $fast);
         imagedestroy($jpg);
     }
 
-    public static function showPng($file) {
-        $png = imagecreatefrompng($file);
-        if ($png == false) {
-            self::showText('Failed to open png');
+    private static function showImage($im, $fast = true) {
+        $w = imagesx($im);
+        $h = imagesy($im);
+        if ($w == SCREEN_W && $h == SCREEN_H) {
+            // Show directly
+            self::showScreen($im, !$fast);
             return;
         }
-        self::showImage($png);
-        imagedestroy($png);
+        // Scale
+        $dstIm = imagecreatetruecolor(SCREEN_W, SCREEN_H);
+        $scaleRate = min(SCREEN_W * 1.0 / $w, SCREEN_H * 1.0 / $h);
+        $dstW = round($w * $scaleRate);
+        $dstH = round($h * $scaleRate);
+        $dstX = (SCREEN_W - $dstW) / 2;
+        $dstY = (SCREEN_H - $dstH) / 2;
+        if ($fast) {
+            imagecopyresized($dstIm, $im, $dstX, $dstY, 0, 0, $dstW, $dstH, $w, $h);
+        } else {
+            imagecopyresampled($dstIm, $im, $dstX, $dstY, 0, 0, $dstW, $dstH, $w, $h);
+        }
+        // Show
+        self::showScreen($dstIm, !$fast);
+        imagedestroy($dstIm);
     }
 
-    private static function createGrayscaleImage($width, $height) {
-        $im = imagecreate($width, $height);
-        for ($i = 0; i < 256; ++$i) {
-            imagecolorallocate($im, $i, $i, $i);
+    private static function showScreen($im, $dither = false) {
+        if ($dither) {
+            self::ditherImageOrderly($im);
+            //self::ditherImageRandomly($im);
         }
-        return $im;
+        imagefile($im, '/dev/fb', 1);
+        sleep(1);
     }
 
-    private static function ditherGrayscaleImageOrderly($im) {
-        if (imageistruecolor($im)) {
-            return;
-        }
-        // 8 x 8 Bayer Matrix
+    private static function ditherImageOrderly($im) {
+        // 4 x 4 Bayer Matrix
         $thresholdMap = array(
             array(0x0, 0x8, 0x2, 0xA),
             array(0xC, 0x4, 0xE, 0x6),
@@ -94,7 +104,11 @@ class System {
         $h = imagesy($im);
         for ($y = 0; $y < $h; ++$y) {
             for ($x = 0 ; $x < $w; ++$x) {
-                $gray8 = imagecolorat($im, $x, $y);
+                $color = imagecolorat($im, $x, $y);
+                $r = ($color >> 16) & 0xFF;
+                $g = ($color >> 8) & 0xFF;
+                $b = $color & 0xFF;
+                $gray8 = ($r * 306 + $g * 601 + $b * 117) >> 10;
                 $gray4 = 0;
                 if ($gray8 < 8) {
                     $gray4 = 0;
@@ -102,25 +116,28 @@ class System {
                     $gray4 = 0xF;
                 } else {
                     $gray4 = ($gray8 - 8) >> 4; // 0x0 ~ 0xE
-                    $delta = $gray8 - 8 - $gray4 << 4; // 0x0 ~ 0xF
-                    if ($delta > $thresholdMap[$x][$y]) {
+                    $delta = $gray8 - 8 - ($gray4 << 4); // 0x0 ~ 0xF
+                    if ($delta > $thresholdMap[$x % 4][$y % 4]) {
                         ++$gray4;
                     }
                 }
-                imagesetpixel($im, $x, $y, $gray4 * 0x11);
+                $gray8 = $gray4 * 0x11;
+                $color = imagecolorallocate($im, $gray8, $gray8, $gray8);
+                imagesetpixel($im, $x, $y, $color);
             }
         }
     }
 
-    private static function ditherGrayscaleImageRandomly($im) {
-        if (imageistruecolor($im)) {
-            return;
-        }
+    private static function ditherImageRandomly($im) {
         $w = imagesx($im);
         $h = imagesy($im);
         for ($y = 0; $y < $h; ++$y) {
             for ($x = 0 ; $x < $w; ++$x) {
-                $gray8 = imagecolorat($im, $x, $y);
+                $color = imagecolorat($im, $x, $y);
+                $r = ($color >> 16) & 0xFF;
+                $g = ($color >> 8) & 0xFF;
+                $b = $color & 0xFF;
+                $gray8 = ($r * 306 + $g * 601 + $b * 117) >> 10;
                 $gray4 = 0;
                 if ($gray8 < 8) {
                     $gray4 = 0;
@@ -129,40 +146,11 @@ class System {
                 } else {
                     $gray4 = ($gray8 + mt_rand(-8, 7)) >> 4;
                 }
-                imagesetpixel($im, $x, $y, $gray4 * 0x11);
+                $gray8 = $gray4 * 0x11;
+                $color = imagecolorallocate($im, $gray8, $gray8, $gray8);
+                imagesetpixel($im, $x, $y, $color);
             }
         }
-    }
-
-    private static function showImage($im) {
-        $w = imagesx($im);
-        $h = imagesy($im);
-        if ($w == SCREEN_W && $h == SCREEN_H) {
-            // Show directly
-            self::showScreen($im);
-            return;
-        }
-        // Scale
-        $dstIm = imagecreatetruecolor(SCREEN_W, SCREEN_H);
-        $scaleRate = min(SCREEN_W * 1.0 / $w, SCREEN_H * 1.0 / $h);
-        $dstW = round($w * $scaleRate);
-        $dstH = round($h * $scaleRate);
-        $dstX = (SCREEN_W - $dstW) / 2;
-        $dstY = (SCREEN_H - $dstH) / 2;
-        if (0) {
-            imagecopyresampled($dstIm, $im, $dstX, $dstY, 0, 0, $dstW, $dstH, $w, $h);
-        } else {
-            imagecopyresized($dstIm, $im, $dstX, $dstY, 0, 0, $dstW, $dstH, $w, $h);
-        }
-        // Show
-        self::showScreen($dstIm);
-        imagedestroy($dstIm);
-    }
-
-    private static function showScreen($im) {
-        // Internal function
-        imagefile($im, '/dev/fb', 1);
-        sleep(1);
     }
 }
 

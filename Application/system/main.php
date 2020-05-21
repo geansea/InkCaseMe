@@ -43,7 +43,7 @@ while (true) {
         gotoWorkMode();
     }
 
-    $lastVbus = $vbus ;
+    $lastVbus = $vbus;
     $lastOnline = $online;
 }
 
@@ -59,8 +59,8 @@ function getUsbOnline() {
 
 function gotoUsbMode() {
     System::showJpg(USB_IMG);
-    system('/bin/umount /mnt/udisk');
-    system('/sbin/insmod /lib/g_file_storage.ko file=/dev/mtdblock5 stall=0 removable=1');
+    system('umount /mnt/udisk');
+    system('insmod /lib/g_file_storage.ko file=/dev/mtdblock5 stall=0 removable=1');
     file_put_contents(KEY_STAMP, time());
 }
 

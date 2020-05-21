@@ -23,7 +23,7 @@ if ($key == 'long_press') {
     // Refresh current image
     $imageIndex = ($imageIndex + $size) % $size;
     System::refreshScreen();
-    System::showJpg($images[$imageIndex]);
+    System::showJpg($images[$imageIndex], false);
 }
 
 if ($key == 'click') {
