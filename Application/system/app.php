@@ -14,17 +14,8 @@ if ($size == 0) {
     exit(0);
 }
 
-if (!file_exists(INDEX_FILE)) {
-    file_put_contents(INDEX_FILE, '-1');
-}
-$imageIndex = intval(file_get_contents(INDEX_FILE));
-
-if ($key == 'long_press') {
-    // Refresh current image
-    $imageIndex = ($imageIndex + $size) % $size;
-    System::refreshScreen();
-    System::showJpg($images[$imageIndex], false);
-}
+// Here it maybe -1
+$imageIndex = getCurrentIndex();
 
 if ($key == 'click') {
     // Next
@@ -32,13 +23,22 @@ if ($key == 'click') {
     System::showJpg($images[$imageIndex]);
 }
 
-if ($key == 'double_click') {
-    // Previous
-    $imageIndex = ($imageIndex - 1 + $size) % $size;
-    System::showJpg($images[$imageIndex]);
+if ($imageIndex < 0) {
+    $imageIndex = 0;
 }
 
-file_put_contents(INDEX_FILE, $imageIndex);
+putCurrentIndex($imageIndex);
+
+if ($key == 'double_click') {
+    // Refresh current image
+    System::refreshScreen();
+    System::showJpg($images[$imageIndex], true);
+}
+
+if ($key == 'long_press') {
+    // Shut down
+    System::shutDown();
+}
 
 function getImages() {
     $images = array();
@@ -62,6 +62,10 @@ function getCurrentIndex() {
         file_put_contents(INDEX_FILE, '-1');
     }
     return intval(file_get_contents(INDEX_FILE));
+}
+
+function putCurrentIndex($index) {
+    file_put_contents(INDEX_FILE, $index);
 }
 
 ?>

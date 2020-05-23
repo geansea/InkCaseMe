@@ -4,9 +4,12 @@ if [ ! -e /mnt/udisk/system/app.php ]; then
 	exit
 fi
 
+if [ code_$1 == code_33 ]; then
+	exit
+fi
+
 if [ code_$1 == code_61 ]; then
 	# Wake-up
-	/opt/bin/php /mnt/udisk/system/app.php click
 	exit
 fi
 

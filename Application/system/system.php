@@ -48,22 +48,22 @@ class System {
         imagedestroy($im);
     }
 
-    public static function showJpg($file, $fast = true) {
+    public static function showJpg($file, $better = false) {
         $jpg = imagecreatefromjpeg($file);
         if (!$jpg) {
             self::showText('Failed to open jpg');
             return;
         }
-        self::showImage($jpg, $fast);
+        self::showImage($jpg, $better);
         imagedestroy($jpg);
     }
 
-    private static function showImage($im, $fast = true) {
+    private static function showImage($im, $better = false) {
         $w = imagesx($im);
         $h = imagesy($im);
         if ($w == SCREEN_W && $h == SCREEN_H) {
             // Show directly
-            self::showScreen($im, !$fast);
+            self::showScreen($im, $better);
             return;
         }
         // Scale
@@ -73,13 +73,13 @@ class System {
         $dstH = round($h * $scaleRate);
         $dstX = (SCREEN_W - $dstW) / 2;
         $dstY = (SCREEN_H - $dstH) / 2;
-        if ($fast) {
-            imagecopyresized($dstIm, $im, $dstX, $dstY, 0, 0, $dstW, $dstH, $w, $h);
-        } else {
+        if ($better) {
             imagecopyresampled($dstIm, $im, $dstX, $dstY, 0, 0, $dstW, $dstH, $w, $h);
+        } else {
+            imagecopyresized($dstIm, $im, $dstX, $dstY, 0, 0, $dstW, $dstH, $w, $h);
         }
         // Show
-        self::showScreen($dstIm, !$fast);
+        self::showScreen($dstIm, $better);
         imagedestroy($dstIm);
     }
 
@@ -94,7 +94,7 @@ class System {
 
     private static function ditherImageOrderly($im) {
         // 4 x 4 Bayer Matrix
-        $thresholdMap = array(
+        $bayerMatrix = array(
             array(0x0, 0x8, 0x2, 0xA),
             array(0xC, 0x4, 0xE, 0x6),
             array(0x3, 0xB, 0x1, 0x9),
@@ -108,21 +108,9 @@ class System {
                 $r = ($color >> 16) & 0xFF;
                 $g = ($color >> 8) & 0xFF;
                 $b = $color & 0xFF;
-                $gray8 = ($r * 306 + $g * 601 + $b * 117) >> 10;
-                $gray4 = 0;
-                if ($gray8 < 8) {
-                    $gray4 = 0;
-                } else if ($gray8 >= 0xF8) {
-                    $gray4 = 0xF;
-                } else {
-                    $gray4 = ($gray8 - 8) >> 4; // 0x0 ~ 0xE
-                    $delta = $gray8 - 8 - ($gray4 << 4); // 0x0 ~ 0xF
-                    if ($delta > $thresholdMap[$x % 4][$y % 4]) {
-                        ++$gray4;
-                    }
-                }
-                $gray8 = $gray4 * 0x11;
-                $color = imagecolorallocate($im, $gray8, $gray8, $gray8);
+                $gray = ($r * 306 + $g * 601 + $b * 117 + 512) >> 10;
+                $gray = ($gray + $bayerMatrix[$x % 4][$y % 4]) / 0x11 * 0x11;
+                $color = imagecolorallocate($im, $gray, $gray, $gray);
                 imagesetpixel($im, $x, $y, $color);
             }
         }
@@ -137,17 +125,9 @@ class System {
                 $r = ($color >> 16) & 0xFF;
                 $g = ($color >> 8) & 0xFF;
                 $b = $color & 0xFF;
-                $gray8 = ($r * 306 + $g * 601 + $b * 117) >> 10;
-                $gray4 = 0;
-                if ($gray8 < 8) {
-                    $gray4 = 0;
-                } else if ($gray8 >= 0xF8) {
-                    $gray4 = 0xF;
-                } else {
-                    $gray4 = ($gray8 + mt_rand(-8, 7)) >> 4;
-                }
-                $gray8 = $gray4 * 0x11;
-                $color = imagecolorallocate($im, $gray8, $gray8, $gray8);
+                $gray = ($r * 306 + $g * 601 + $b * 117 + 512) >> 10;
+                $gray = ($gray + mt_rand(0, 0x10)) / 0x11 * 0x11;
+                $color = imagecolorallocate($im, $gray, $gray, $gray);
                 imagesetpixel($im, $x, $y, $color);
             }
         }

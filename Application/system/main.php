@@ -13,7 +13,6 @@ $lastVbus = getVbusStatus();
 $lastOnline = getUsbOnline();
 
 // Show logo
-System::refreshScreen();
 System::showJpg(LOGO_IMG);
 
 // Control lifecycle
@@ -25,8 +24,8 @@ while (true) {
 
     $delta = time() - file_get_contents(KEY_STAMP);
     if ($delta > 30 && !$vbus && !$online) {
-        System::standBy();
         file_put_contents(KEY_STAMP, time());
+        System::standBy();
         continue;
     }
     
