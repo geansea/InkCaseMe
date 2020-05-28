@@ -3,6 +3,9 @@
 mb_internal_encoding('UTF-8');
 
 define('KEY_STAMP', '/tmp/keystamp');
+define('LOGO_IMG', '/tmp/resources/logo.jpg');
+define('USB_IMG', '/tmp/resources/usb.jpg');
+define('BATTERY_CAPACITY', '/sys/class/power_supply/battery/capacity');
 define('POWER_STATE', '/sys/android_power/state');
 define('DEFAULT_FONT', '/opt/qte/fonts/msyh.ttf');
 
@@ -38,11 +41,9 @@ class System {
         // Background
         $white = imagecolorallocate($im, 0xFF, 0xFF, 0xFF);
         imagefilledrectangle($im, 0, 0, SCREEN_W, SCREEN_H, $white);
-        imagecolordeallocate($im, $white);
         // Text
         $black = imagecolorallocate($im, 0, 0, 0);
         imagettftext($im, 16, 0, 10, 20, $black, DEFAULT_FONT, $text);
-        imagecolordeallocate($im, $black);
         // Show
         self::showScreen($im);
         imagedestroy($im);
@@ -56,6 +57,24 @@ class System {
         }
         self::showImage($jpg, $better);
         imagedestroy($jpg);
+    }
+
+    public static function showLogo() {
+        $im = imagecreatefromjpeg(LOGO_IMG);
+        if (!$im) {
+            self::showText('Failed to show logo');
+            return;
+        }
+        // Text
+        $battery = file_get_contents(BATTERY_CAPACITY);
+        $black = imagecolorallocate($im, 0, 0, 0);
+        imagettftext($im, 16, 0, 10, 20, $black, DEFAULT_FONT, $battery);
+        self::showImage($im);
+        imagedestroy($im);
+    }
+
+    public static function showUsb() {
+        self::showJpg(USB_IMG);
     }
 
     private static function showImage($im, $better = false) {
@@ -109,7 +128,7 @@ class System {
                 $g = ($color >> 8) & 0xFF;
                 $b = $color & 0xFF;
                 $gray = ($r * 306 + $g * 601 + $b * 117 + 512) >> 10;
-                $gray = ($gray + $bayerMatrix[$x % 4][$y % 4]) / 0x11 * 0x11;
+                $gray = intdiv($gray + $bayerMatrix[$x % 4][$y % 4], 0x11) * 0x11;
                 $color = imagecolorallocate($im, $gray, $gray, $gray);
                 imagesetpixel($im, $x, $y, $color);
             }
@@ -126,7 +145,7 @@ class System {
                 $g = ($color >> 8) & 0xFF;
                 $b = $color & 0xFF;
                 $gray = ($r * 306 + $g * 601 + $b * 117 + 512) >> 10;
-                $gray = ($gray + mt_rand(0, 0x10)) / 0x11 * 0x11;
+                $gray = intdiv($gray + mt_rand(0, 0x10), 0x11) * 0x11;
                 $color = imagecolorallocate($im, $gray, $gray, $gray);
                 imagesetpixel($im, $x, $y, $color);
             }

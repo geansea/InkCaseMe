@@ -4,16 +4,13 @@ include_once('/tmp/system/system.php');
 
 define('VBUS_STATUS', '/sys/bus/platform/drivers/dwc_otg/vbus_status');
 define('USB_ONLINE', '/sys/devices/platform/rockchip_battery/power_supply/usb/online');
-define('LOGO_IMG', '/tmp/resources/logo.jpg');
-define('USB_IMG', '/tmp/resources/usb.jpg');
 
 // Get status early
 file_put_contents(KEY_STAMP, time());
 $lastVbus = getVbusStatus();
 $lastOnline = getUsbOnline();
 
-// Show logo
-System::showJpg(LOGO_IMG);
+gotoWorkMode();
 
 // Control lifecycle
 while (true) {
@@ -57,7 +54,7 @@ function getUsbOnline() {
 }
 
 function gotoUsbMode() {
-    System::showJpg(USB_IMG);
+    System::showUsb();
     system('umount /mnt/udisk');
     system('insmod /lib/g_file_storage.ko file=/dev/mtdblock5 stall=0 removable=1');
     file_put_contents(KEY_STAMP, time());
@@ -67,7 +64,7 @@ function gotoWorkMode() {
     system('rmmod g_file_storage.ko');
     system('umount /mnt/udisk');
     system('mount -t vfat -o iocharset=utf8 /dev/mtdblock5 /mnt/udisk');
-    System::showJpg(LOGO_IMG);
+    System::showLogo();
     file_put_contents(KEY_STAMP, time());
 }
 
